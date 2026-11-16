@@ -1,0 +1,47 @@
+name: evidence
+on:
+  push:
+    branches: ['evidence/run']
+permissions:
+  contents: read
+jobs:
+  cocoa:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { ref: evidence/taps-before, test: test_cocoa_event_taps.py }
+          - { ref: fix/macos-post-confirm, test: test_cocoa_event_taps.py }
+          - { ref: evidence/inverter-before, test: test_cocoa_wheel_inverter.py }
+          - { ref: fix/macos-scroll-continuous, test: test_cocoa_wheel_inverter.py }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build xa11y-python and the test apps
+        run: |
+          git log --oneline -1
+          python -m venv .venv-integ
+          .venv-integ/bin/pip install -q maturin
+          .venv-integ/bin/pip install -q -r tests/requirements.txt
+          (cd xa11y-python && ../.venv-integ/bin/pip install -q -e .)
+          .venv-integ/bin/pip install -q -e pytest-xa11y
+          make -C test-apps/cocoa build
+          if [ -d test-apps/taps ]; then make -C test-apps/taps build; fi
+          if [ -d test-apps/inverter ]; then make -C test-apps/inverter build; fi
+      - name: Grant Accessibility
+        run: |
+          bash scripts/grant_macos_tcc.sh "$(.venv-integ/bin/python -c 'import sys; print(sys.executable)')"
+          for f in test-apps/taps/xa11y-taps test-apps/inverter/xa11y-inverter; do
+            if [ -f "$f" ]; then bash scripts/grant_macos_tcc.sh "$PWD/$f"; fi
+          done
+      - name: Run ${{ matrix.test }}
+        env:
+          XA11Y_TEST_APP: cocoa
+          XA11Y_REQUIRE_FRONTMOST: '1'
+        run: .venv-integ/bin/python -m pytest -v -p no:cacheprovider tests/suites/python/${{ matrix.test }}
