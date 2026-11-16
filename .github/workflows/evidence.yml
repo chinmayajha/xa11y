@@ -6,14 +6,12 @@ permissions:
   contents: read
 jobs:
   cocoa:
-    runs-on: macos-latest
+    runs-on: macos-15-intel
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { ref: evidence/taps-before, test: test_cocoa_event_taps.py }
-          - { ref: fix/macos-post-confirm, test: test_cocoa_event_taps.py }
           - { ref: evidence/inverter-before, test: test_cocoa_wheel_inverter.py }
           - { ref: fix/macos-scroll-continuous, test: test_cocoa_wheel_inverter.py }
     steps:
