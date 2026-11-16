@@ -14,6 +14,7 @@ jobs:
         include:
           - { ref: evidence/inverter-before, test: test_cocoa_wheel_inverter.py }
           - { ref: fix/macos-scroll-continuous, test: test_cocoa_wheel_inverter.py }
+          - { ref: combined/macos-input, test: test_cocoa_wheel_inverter.py }
     steps:
       - uses: actions/checkout@v4
         with:
