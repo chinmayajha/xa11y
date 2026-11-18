@@ -1,0 +1,42 @@
+name: evidence
+on:
+  push:
+    branches: ['evidence/placeholder-before']
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { app: cocoa, tests: "tests/suites/python/test_compat.py -k placeholder" }
+          - { app: electron, tests: "tests/suites/python/test_compat.py tests/suites/python/test_web_rich.py -k placeholder" }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: evidence/placeholder-before-ref
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build xa11y-python and the test app
+        run: |
+          git log --oneline -2
+          python -m venv .venv-integ
+          .venv-integ/bin/pip install -q maturin
+          .venv-integ/bin/pip install -q -r tests/requirements.txt
+          (cd xa11y-python && ../.venv-integ/bin/pip install -q -e .)
+          .venv-integ/bin/pip install -q -e pytest-xa11y
+          if [ "${{ matrix.app }}" = cocoa ]; then make -C test-apps/cocoa build; fi
+          if [ "${{ matrix.app }}" = electron ]; then (cd test-apps/electron && npm install); fi
+      - name: Grant Accessibility
+        run: bash scripts/grant_macos_tcc.sh "$(.venv-integ/bin/python -c 'import sys; print(sys.executable)')"
+      - name: Run the placeholder tests
+        env:
+          XA11Y_TEST_APP: ${{ matrix.app }}
+        run: .venv-integ/bin/python -m pytest -v -p no:cacheprovider ${{ matrix.tests }}
